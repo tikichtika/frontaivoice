@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Voice Assistant</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      font-family: 'Poppins', sans-serif;
+      color: white;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 3.5rem;
+      margin-bottom: 30px;
+      text-shadow: 0 0 10px #c4a07c
+    }
+    /* From Uiverse.io by Smit-Prajapati */
+    .loader {
+      --size: 250px;
+      --duration: 2s;
+      --logo-color: grey;
+      --background: linear-gradient( 0deg, rgba(50, 50, 50, 0.2) 0%, rgba(100, 100, 100, 0.2) 100%);
+      height: var(--size);
+      aspect-ratio: 1;
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .loader .box {
+      position: absolute;
+      background: rgba(100, 100, 100, 0.15);
+      background: var(--background);
+      border-radius: 50%;
+      border-top: 1px solid rgba(100, 100, 100, 1);
+      box-shadow: rgba(0, 0, 0, 0.3) 0px 10px 10px -0px;
+      backdrop-filter: blur(5px);
+      /* Removed animation from here */
+    }
+
+    .loader.active .box {
+      animation: ripple var(--duration) infinite ease-in-out; /* Add animation when active class is present*/
+    }
+
+    .loader .box:nth-child(1) { inset: 40%; z-index: 99; }
+    .loader .box:nth-child(2) { inset: 30%; z-index: 98; border-color: rgba(100, 100, 100, 0.8); animation-delay: 0.2s; }
+    .loader .box:nth-child(3) { inset: 20%; z-index: 97; border-color: rgba(100, 100, 100, 0.6); animation-delay: 0.4s; }
+    .loader .box:nth-child(4) { inset: 10%; z-index: 96; border-color: rgba(100, 100, 100, 0.4); animation-delay: 0.6s; }
+    .loader .box:nth-child(5) { inset: 0%; z-index: 95; border-color: rgba(100, 100, 100, 0.2); animation-delay: 0.8s; }
+
+    .loader .logo {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      padding: 30%;
+    }
+
+    .loader .logo img {
+      height: 40px;
+      min-width: 40px;
+      fill: var(--logo-color);
+      width: 100%;
+      /* Removed animation from here */
+    }
+
+    .loader.active .logo img {
+      animation: color-change var(--duration) infinite ease-in-out; /* Add animation when active class is present*/
+    }
+
+    @keyframes ripple {
+      0% { transform: scale(1); box-shadow: rgba(0, 0, 0, 0.3) 0px 10px 10px -0px; }
+      50% { transform: scale(1.3); box-shadow: rgba(0, 0, 0, 0.3) 0px 30px 20px -0px; }
+      100% { transform: scale(1); box-shadow: rgba(0, 0, 0, 0.3) 0px 10px 10px -0px; }
+    }
+
+    @keyframes color-change {
+      0% { fill: var(--logo-color); }
+      50% { fill: white; }
+      100% { fill: var(--logo-color); }
+    }
+
+    /* ... (rest of your CSS) */
+    .circle-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      transition: background 0.3s ease;
+      cursor: pointer;
+    }
+
+    .start-btn { background: white; color: #ff4b4b; }
+    .close-btn { background: linear-gradient(45deg, #2b2927, #c4bcbcd3); color: rgb(255, 255, 255); }
+    .circle-btn:hover { filter: brightness(1.2); }
+    .controls { display: flex; gap: 20px; justify-content: center; }
+  </style>
+</head>
+<body>
+  <h1>AI Voice Assistant</h1>
+  <div class="loader " id="loader">
+    <div class="box ">
+      <div class="logo">
+        <img fill="none" viewBox="0 0 94 94" class="svg" src="la tulipe noir (500 x 150 px) (160 x 50 px) (500 x 500 px).png" alt="">
+        </svg> </div>
+    </div>
+    <div class="box"></div>
+    <div class="box"></div>
+    <div class="box"></div>
+    <div class="box"></div>
+  </div>
+
+  <div class="controls">
+    <button class="circle-btn start-btn" id="stopBtn">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <button class="circle-btn close-btn" id="startBtn">
+      <i class="fa-solid fa-play"></i>
+    </button>
+  </div>
+  <audio id="endSound" src="notifications-sound-127856.mp3"></audio>
+
+  <script>
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const loader = document.getElementById("loader");
+    const endSound = document.getElementById("endSound");
+
+    // --- عنوان الخادم الخلفي ---
+    // أثناء التطوير المحلي، سيكون عادة http://localhost:3000
+    // عند النشر على منصة استضافة، ستحتاج لتغيير هذا إلى رابط الخادم المنشور
+    const BACKEND_URL = 'https://ai-v-backend.onrender.com'; // تأكد من تطابق المنفذ مع ما يعمل عليه الخادم
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // Check if SpeechRecognition is supported
+    if (!SpeechRecognition) {
+      alert("عذراً، متصفحك لا يدعم التعرف على الصوت. جرب Google Chrome أو Edge.");
+      // Disable buttons if not supported
+      startBtn.disabled = true;
+      stopBtn.disabled = true;
+    } else {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "fr-MA";
+      recognition.interimResults = true; // Get results while speaking
+
+      const synth = window.speechSynthesis;
+      let keepTalking = false;
+      let audioContext, analyser, microphone, stream;
+      let audioPlayback;
+      let isSpeaking = false;
+
+      const conversationHistoryLimit = 5; // Limit context window
+      let conversationHistory = [
+        {
+          role: "system",
+          content: "أنت مساعد افتراضي محترف وودود لمطعم لا توليب نوار، الواقع في السماعيلية، سطات، المغرب. تتحدث باللغة الفرنسية فقط. مهمتك هي الرد على العملاء بأدب ووضوح وسرعة. قدم معلومات حول القائمة، ساعات العمل (12 ظهراً - 12 ليلاً، 7 أيام في الأسبوع)، الموقع، كيفية الحجز (عبر الهاتف: +212 XXX XXXXXX). كن دائماً مهذباً واستخدم جملاً مثل 'Bonjour', 'Comment puis-je vous aider?', 'Merci de votre appel/question'. لا تجب على أسئلة خارج نطاق المطعم. إذا طُلب منك معلومات شخصية أو غير لائقة، اعتذر بأدب وقل أنك لا تستطيع المساعدة في ذلك."
+        },
+      ];
+
+      // *** تعديل: استدعاء الواجهة الخلفية للحصول على رد OpenAI ***
+      async function getAIResponse(messages) {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/chat`, { // <-- استدعاء الخادم الخلفي
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ messages: messages }), // <-- إرسال سجل المحادثة
+          });
+
+          if (!response.ok) {
+            // Handle HTTP errors (like 500 Internal Server Error from backend)
+            const errorData = await response.json();
+            console.error("Backend AI Error:", errorData);
+            throw new Error(`Backend error: ${response.statusText} - ${errorData.error || 'Unknown error'}`);
+          }
+
+          const data = await response.json();
+          return data.aiResponse; // <-- الحصول على الرد من الخادم الخلفي
+
+        } catch (error) {
+          console.error("Error fetching AI response from backend:", error);
+          // Provide a user-friendly error message
+          return "Désolé, une erreur s'est produite lors de la connexion au service d'assistance. Veuillez réessayer plus tard.";
+        }
+      }
+
+      function base64ToBlob(base64, type = 'audio/mpeg') {
+        try {
+          const byteString = atob(base64);
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          return new Blob([ab], { type });
+        } catch (e) {
+          console.error("Error decoding base64 string:", e);
+          return null; // Return null or handle error appropriately
+        }
+      }
+
+      // *** تعديل: استدعاء الواجهة الخلفية لـ Google TTS ***
+      async function speakWithGoogleTTS(text) {
+        isSpeaking = true;
+        loader.classList.add("active"); // Keep loader active while fetching/playing TTS
+
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/tts`, { // <-- استدعاء الخادم الخلفي
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ text: text }), // <-- إرسال النص للتحويل
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Backend TTS Error:", errorData);
+            throw new Error(`Backend TTS error: ${response.statusText} - ${errorData.error || 'Unknown error'}`);
+          }
+
+          const data = await response.json();
+          if (data.audioContent) {
+            const audioBlob = base64ToBlob(data.audioContent, "audio/mp3");
+            if (!audioBlob) throw new Error("Failed to decode base64 audio.");
+
+            const audioUrl = URL.createObjectURL(audioBlob);
+            audioPlayback = new Audio(audioUrl);
+
+            return new Promise((resolve, reject) => {
+              audioPlayback.play()
+                .then(() => {
+                  audioPlayback.onended = () => {
+                    isSpeaking = false;
+                    loader.classList.remove("active"); // Deactivate loader when done speaking
+                    URL.revokeObjectURL(audioUrl); // Clean up blob URL
+                    resolve();
+                  };
+                })
+                .catch(playError => {
+                  console.error("Audio playback error:", playError);
+                  isSpeaking = false;
+                  loader.classList.remove("active");
+                  URL.revokeObjectURL(audioUrl);
+                  reject(playError);
+                });
+            });
+          } else {
+            console.error("TTS Error: No audio content received from backend.", data);
+            throw new Error("No audio content received from backend.");
+          }
+        } catch (error) {
+          console.error("Error fetching/playing TTS from backend:", error);
+          isSpeaking = false;
+          loader.classList.remove("active");
+          // Fallback or just resolve/reject the promise
+          return Promise.resolve(); // Or reject(error) depending on desired behavior
+        }
+      }
+
+
+      function initializeAudioProcessing() {
+        // Only initialize if not already done or if context is closed
+        if (!audioContext || audioContext.state === 'closed') {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+
+          navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function (userStream) {
+              if (!audioContext) return; // Check if context was closed before promise resolved
+              stream = userStream;
+              microphone = audioContext.createMediaStreamSource(stream);
+              microphone.connect(analyser);
+            })
+            .catch(function (err) {
+              console.error('Microphone access error:', err);
+              alert('لم يتم السماح بالوصول إلى الميكروفون. لا يمكن استخدام ميزة التعرف على الصوت.');
+              stopAssistant(); // Stop if microphone access fails
+            });
+        }
+      }
+
+      function startRecognition() {
+        if (isSpeaking) return; // Don't start if already speaking
+
+        try {
+          recognition.start();
+
+          recognition.onstart = () => {
+            console.log("Recognition started");
+            loader.classList.add("active");
+            initializeAudioProcessing(); // Initialize audio context when recognition starts
+          };
+
+          recognition.onresult = async (event) => {
+            let transcript = "";
+            let isFinal = false;
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              transcript += event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                isFinal = true;
+              }
+            }
+
+            console.log("Transcript (interim):", transcript);
+
+            if (isFinal && transcript.trim()) {
+              console.log("Final Transcript:", transcript);
+              recognition.stop(); // Stop recognition explicitly after final result
+
+              // Play end sound immediately after stopping recognition
+              if (endSound.readyState >= 2) { // Check if sound can be played
+                 endSound.play().catch(e => console.error("End sound play error:", e));
+              } else {
+                  endSound.oncanplaythrough = () => endSound.play().catch(e => console.error("End sound play error:", e));
+              }
+
+
+              // Add user message to history
+              conversationHistory.push({ role: "user", content: transcript.trim() });
+              // Trim history if it exceeds the limit
+              if (conversationHistory.length > conversationHistoryLimit + 1) { // +1 for system message
+                conversationHistory = [conversationHistory[0], ...conversationHistory.slice(-conversationHistoryLimit)];
+              }
+
+              console.log("Sending to AI:", conversationHistory);
+
+              // Get AI response from backend
+              const aiResponse = await getAIResponse(conversationHistory);
+              console.log("AI Response:", aiResponse);
+
+              // Add AI response to history
+              conversationHistory.push({ role: "assistant", content: aiResponse });
+              // Trim history again if needed (though less likely here)
+              if (conversationHistory.length > conversationHistoryLimit + 1) {
+                 conversationHistory = [conversationHistory[0], ...conversationHistory.slice(-conversationHistoryLimit)];
+              }
+
+
+              // Wait for end sound to finish (or start speaking immediately)
+              // Option 1: Speak immediately after getting response
+              // speakWithGoogleTTS(aiResponse).then(() => {
+              //   if (keepTalking) {
+              //       console.log("Restarting recognition after speaking.");
+              //       startRecognition(); // Start recognition again if keepTalking is true
+              //   }
+              // }).catch(err => {
+              //     console.error("Error in TTS process:", err);
+              //      if (keepTalking) setTimeout(startRecognition, 500); // Retry starting recognition after error
+              // });
+
+              // Option 2: Wait for end sound (if playing) then speak
+              const speakAfterSound = async () => {
+                 await speakWithGoogleTTS(aiResponse);
+                 if (keepTalking) {
+                    console.log("Restarting recognition after speaking.");
+                    // Brief delay before restarting might be necessary
+                    setTimeout(startRecognition, 100);
+                 }
+              };
+
+              // If endSound is potentially playing, wait for it. Otherwise, speak immediately.
+              if (endSound.duration > 0 && !endSound.paused) {
+                  endSound.onended = speakAfterSound;
+              } else {
+                 speakAfterSound(); // Speak immediately if sound not playing or finished
+              }
+
+
+            }
+          };
+
+
+          recognition.onerror = (event) => {
+            console.error("Recognition error:", event.error);
+            loader.classList.remove("active"); // Stop loader on error
+            // Avoid restarting immediately on common errors like 'no-speech' or 'aborted'
+            if (event.error !== 'no-speech' && event.error !== 'aborted' && event.error !== 'network') {
+                 if (keepTalking) {
+                    console.log("Attempting to restart recognition after error:", event.error);
+                    setTimeout(startRecognition, 1000); // Try restarting after a delay
+                 }
+            } else if (event.error === 'aborted' && keepTalking) {
+                 // If aborted but supposed to keep talking (e.g., due to interruption), restart quickly
+                 console.log("Recognition aborted, restarting quickly...");
+                 setTimeout(startRecognition, 100);
+            } else {
+                 stopAssistant(); // Stop completely for critical errors or if keepTalking is false
+            }
+
+          };
+
+          // Handle recognition end - restart if keepTalking is true and wasn't stopped manually or by critical error
+          recognition.onend = () => {
+            console.log("Recognition ended.");
+             // Only remove active class if we are not immediately speaking or restarting
+             if (!isSpeaking && !keepTalking) {
+                 loader.classList.remove("active");
+             }
+             // Note: Restart logic is handled within onresult/onerror/speakWithGoogleTTS .onended
+          };
+
+
+        } catch (err) {
+          console.error("Error starting recognition:", err);
+          alert("حدث خطأ عند بدء التعرف على الصوت.");
+          stopAssistant();
+        }
+      }
+
+
+      // --- تعديل: مقاطعة الكلام عند البدء بالكلام ---
+      recognition.oninterimresult = () => {
+          if (isSpeaking && audioPlayback) {
+              console.log("User started speaking, stopping TTS playback.");
+              audioPlayback.pause();
+              audioPlayback.currentTime = 0; // Reset audio
+              URL.revokeObjectURL(audioPlayback.src); // Clean up blob URL
+              audioPlayback = null; // Release the Audio object
+              isSpeaking = false;
+              // recognition.stop(); // Stop current recognition attempt
+              // Don't need to restart recognition here, as a new final result will trigger it
+              loader.classList.add("active"); // Ensure loader stays active as recognition continues
+          }
+      };
+
+
+      function stopAssistant() {
+          console.log("Stopping Assistant.");
+          keepTalking = false;
+          try {
+              recognition.stop(); // Stop speech recognition
+          } catch(e) { console.warn("Recognition already stopped or failed to stop:", e); }
+
+          synth.cancel(); // Cancel any native browser speech synthesis (though we use Google TTS)
+
+          if (audioPlayback) {
+              audioPlayback.pause();
+              audioPlayback.currentTime = 0;
+               if (audioPlayback.src && audioPlayback.src.startsWith('blob:')) {
+                  URL.revokeObjectURL(audioPlayback.src);
+               }
+              audioPlayback = null;
+              isSpeaking = false;
+          }
+
+          loader.classList.remove("active");
+          loader.style.transform = "none"; // Reset any potential transforms
+
+          // Close audio context and release microphone stream
+          if (stream) {
+              stream.getTracks().forEach(track => track.stop());
+              stream = null;
+              microphone = null; // Release reference
+              analyser = null; // Release reference
+          }
+          if (audioContext && audioContext.state !== 'closed') {
+              audioContext.close().then(() => {
+                  console.log("AudioContext closed.");
+                  audioContext = null; // Release reference
+              }).catch(e => console.error("Error closing AudioContext:", e));
+          }
+
+
+          // Reset conversation history (keeping the system prompt)
+          conversationHistory = [conversationHistory[0]];
+          console.log("Assistant stopped, history reset.");
+      }
+
+      // Event Listeners for Buttons
+      startBtn.addEventListener("click", () => {
+          console.log("Start button clicked.");
+          if (!keepTalking) { // Prevent multiple starts if already running
+             keepTalking = true;
+             loader.classList.add("active"); // Show activity immediately
+             startRecognition(); // Start the recognition process
+          }
+      });
+
+      stopBtn.addEventListener("click", () => {
+          console.log("Stop button clicked.");
+          stopAssistant();
+      });
+
+    } // End of else block for SpeechRecognition support check
+
+  </script>
+</body>
+</html>
